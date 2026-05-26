@@ -1,0 +1,117 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum userRole {
+  admin
+  technician
+  customer
+}
+
+enum status {
+  open
+  in_progress
+  close
+}
+
+enum serviceType {
+  base
+  additional
+}
+
+enum scheduleStatus {
+  booked
+  finished
+}
+
+model Users {
+  id       String  @id @default(uuid())
+  name     String
+  email    String  @unique
+  password String
+  avatar   String?
+
+  role userRole @default(customer)
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+
+  technician TechnicianProfile?
+  tickets    Tickets[]
+
+  @@map("users")
+}
+
+model TechnicianProfile {
+  id           String   @id @default(uuid())
+  userId       String   @unique @map("user_id")
+  availability String[]
+  active       Boolean  @default(true)
+
+  user      Users                @relation(fields: [userId], references: [id])
+  tickets   Tickets[]
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+
+  @@map("technician_profile")
+}
+
+model Services {
+  id     String  @id @default(uuid())
+  title  String
+  price  Decimal
+  status Boolean @default(true)
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+
+  tickets TicketsServices[]
+
+  @@map("services")
+}
+
+model Tickets {
+  id           String  @id @default(uuid())
+  ticketNumber Int     @unique @default(autoincrement())
+  title        String
+  description  String?
+  clientId     String  @map("client_id")
+  technicianId String  @map("technician_id")
+  status       status  @default(open)
+
+  client Users @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  technician TechnicianProfile @relation(fields: [technicianId], references: [id])
+
+  services TicketsServices[]
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+
+  @@map("tickets")
+}
+
+model TicketsServices {
+  id        String      @id @default(uuid())
+  ticketId  String      @map("ticket_id")
+  serviceId String?     @map("service_id")
+  title     String
+  price     Decimal
+  type      serviceType
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  ticket   Tickets   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  services Services? @relation(fields: [serviceId], references: [id])
+
+  @@unique([serviceId, type, ticketId])
+
+  @@map("tickets_services")
+}
+
