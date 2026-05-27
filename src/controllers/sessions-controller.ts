@@ -17,9 +17,14 @@ class SessionsController {
 
     const user = await prisma.users.findFirst({
       where: { email },
+      include: { technician: { select: { active: true } } },
     });
 
     if (!user) {
+      return next(new AppError("invalid e-mail or password!", 401));
+    }
+
+    if (user.technician?.active === false) {
       return next(new AppError("invalid e-mail or password!", 401));
     }
 
