@@ -10,6 +10,7 @@
     "build": "tsup src/server.ts --out-dir build",
     "start": "node build/server.js"
   },
+  
   "author": "Juan Mafra",
   "license": "ISC",
   "dependencies": {
