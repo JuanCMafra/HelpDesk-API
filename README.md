@@ -100,6 +100,58 @@ Para abrir o Prisma Studio:
 ```bash
 npx prisma studio
 ```
+## Seed do banco de dados
+
+O projeto possui uma seed automática para popular o banco de dados com dados iniciais necessários para desenvolvimento e testes.
+
+### O que a seed cria
+
+#### Conta de administrador
+
+| Campo | Valor |
+|---|---|
+| Email | `admin@email.com` |
+| Senha | `admin` |
+
+---
+
+#### Técnicos cadastrados
+
+| Técnico | Email | Senha |
+|---|---|---|
+| technician1 | `technician1@email.com` | `technician1` |
+| technician2 | `technician2@email.com` | `technician2` |
+| technician3 | `technician3@email.com` | `technician3` |
+
+Cada técnico possui horários específicos de disponibilidade configurados automaticamente.
+
+---
+
+#### Serviços cadastrados
+
+A seed também cria serviços iniciais como:
+
+- Instalação e atualização de softwares
+- Instalação e atualização de hardwares
+- Diagnóstico e remoção de vírus
+- Suporte a impressoras
+- Suporte a periféricos
+- Solução de problemas de conectividade de internet
+- Backup e recuperação de dados
+- Otimização de desempenho do sistema operacional
+- Configuração de VPN e acesso remoto
+
+---
+
+### Como executar a seed
+
+Após executar as migrations, rode:
+
+```bash
+npx prisma db seed
+```
+
+A seed utiliza `upsert`, então os registros não serão duplicados caso o comando seja executado novamente.
 
 ## Observações
 
