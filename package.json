@@ -11,7 +11,7 @@
     "test": "vitest run",
     "test:dev": "vitest --watch",
     "build": "npx prisma generate && tsup src/server.ts --out-dir build --format esm",
-    "start": "node build/server.js"
+    "start": "node build/server.mjs"
   },
   "author": "Juan Mafra",
   "license": "ISC",
