@@ -8,6 +8,7 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(3333),
   ADMIN_PASSWORD: z.string().trim().min(5),
   ADMIN_EMAIL: z.email(),
+  CORS: z.url().default(`http://localhost:5173`),
 });
 
 const env = envSchema.parse(process.env);
