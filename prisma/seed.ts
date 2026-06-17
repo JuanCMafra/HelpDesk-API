@@ -7,7 +7,7 @@ async function seed() {
 
   await prisma.users.upsert({
     where: {
-      email: "admin@email.com",
+      email: env.ADMIN_EMAIL,
     },
 
     update: {
