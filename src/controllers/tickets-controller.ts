@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import prisma from "@/database/prisma";
 import z from "zod";
 import { AppError } from "@/utils/AppError";
+import dayjs from "dayjs";
 
 class TicketsController {
   async create(req: Request, res: Response, next: NextFunction) {
@@ -9,7 +10,7 @@ class TicketsController {
       title: z
         .string()
         .min(4, "Por Favor, adicione um título válido ao chamado!"),
-      description: z.string().min(5, "Descrição incompleta!").optional(),
+      description: z.string().optional(),
       service: z.uuid(),
     });
 
@@ -121,19 +122,26 @@ class TicketsController {
     });
 
     const ticketsDashboard = showTickets.map((t) => ({
-      updatedAt: t.updatedAt,
-      id: t.ticketNumber,
+      id: t.id,
+      ticketNumber: t.ticketNumber,
       title: t.title,
+      updated_at: dayjs(t.updatedAt).format("DD-MM-YYYY HH:mm"),
 
-      service: t.services.find((s) => s.type === "base")?.title,
+      technician: {
+        name: t.technician.user.name,
+        avatar: t.technician.user.avatar,
+      },
+
+      service: t.services.map((s) => ({
+        title: s.title,
+        price: s.price.toNumber(),
+        type: s.type,
+      })),
 
       total: t.services.reduce(
         (total, service) => total + service.price.toNumber(),
         0,
       ),
-
-      technicianAvatar: t.technician.user.avatar,
-      technician: t.technician.user.name,
 
       status: t.status,
     }));
@@ -144,7 +152,7 @@ class TicketsController {
       close: 2,
     };
 
-    ticketsDashboard.sort((a, b) => {
+    [...ticketsDashboard].sort((a, b) => {
       const statusComparison = statusOrder[a.status] - statusOrder[b.status];
 
       if (statusComparison !== 0) {
@@ -152,8 +160,8 @@ class TicketsController {
       }
 
       return (
-        new Date(a.updatedAt || 0).getTime() -
-        new Date(b.updatedAt || 0).getTime()
+        new Date(a.updated_at || 0).getTime() -
+        new Date(b.updated_at || 0).getTime()
       );
     });
 
@@ -162,13 +170,16 @@ class TicketsController {
 
   async showTicketCustomer(req: Request, res: Response, next: NextFunction) {
     const paramsSchema = z.object({
-      id: z.coerce.number().min(1, "Id inválido!").positive("Id inválido!"),
+      id: z.uuid({ message: "ID Inválido!" }),
     });
 
     const { id } = paramsSchema.parse(req.params);
 
     const ticket = await prisma.tickets.findFirst({
-      where: { ticketNumber: id, clientId: req.user?.id },
+      where: {
+        id,
+        clientId: req.user?.id,
+      },
       include: {
         client: { select: { id: true } },
         services: true,
@@ -185,16 +196,20 @@ class TicketsController {
     }
 
     const showTicket = {
-      id: ticket.ticketNumber,
+      id: ticket.id,
+      ticketNumber: ticket.ticketNumber,
       title: ticket.title,
       description: ticket.description,
       category: ticket.services.find((s) => s.type === "base")?.title,
-      created_at: ticket.createdAt,
-      updated_at: ticket.updatedAt,
+      created_at: dayjs(ticket.createdAt).format("DD-MM-YYYY HH:mm"),
+      updated_at: dayjs(ticket.updatedAt).format("DD-MM-YYYY HH:mm"),
+      status: ticket.status,
 
-      technician: ticket.technician.user.name,
-      technician_avatar: ticket.technician.user.avatar,
-      technician_email: ticket.technician.user.email,
+      technician: {
+        name: ticket.technician.user.name,
+        avatar: ticket.technician.user.avatar,
+        email: ticket.technician.user.email,
+      },
 
       base_value: ticket.services
         .find((s) => s.type === "base")
@@ -205,16 +220,21 @@ class TicketsController {
           title: v.title,
           price: v.price.toNumber(),
         })),
+
+      service: ticket.services.map((s) => ({
+        id: s.id,
+        title: s.title,
+        price: s.price.toNumber(),
+        type: s.type,
+      })),
+
+      total: ticket.services.reduce(
+        (total, service) => total + service.price.toNumber(),
+        0,
+      ),
     };
 
-    const total =
-      (showTicket.base_value || 0) +
-      showTicket.additional_values.reduce(
-        (total, value) => total + value.price,
-        0,
-      );
-
-    return res.json({ ...showTicket, total });
+    return res.json(showTicket);
   }
 
   async indexTechnicianTickets(
@@ -251,17 +271,24 @@ class TicketsController {
     });
 
     const ticketsDashboard = showTickets.map((t) => ({
-      id: t.ticketNumber,
+      id: t.id,
+      ticketNumber: t.ticketNumber as unknown as string,
       title: t.title,
-      service: t.services.find((s) => s.type === "base")?.title,
-      updatedAt: t.updatedAt,
+      service: t.services.map((s) => ({
+        title: s.title,
+        price: s.price.toNumber(),
+        type: s.type,
+      })),
+      updated_at: dayjs(t.updatedAt).format("DD-MM-YYYY HH:mm"),
       total: t.services.reduce(
         (total, service) => total + service.price.toNumber(),
         0,
       ),
 
-      clientAvatar: t.client.avatar,
-      client: t.client.name,
+      client: {
+        name: t.client.name,
+        avatar: t.client.avatar,
+      },
 
       status: t.status,
     }));
@@ -280,8 +307,8 @@ class TicketsController {
       }
 
       return (
-        new Date(a.updatedAt || 0).getTime() -
-        new Date(b.updatedAt || 0).getTime()
+        new Date(a.updated_at || 0).getTime() -
+        new Date(b.updated_at || 0).getTime()
       );
     });
 
@@ -290,13 +317,13 @@ class TicketsController {
 
   async showTicketTechnician(req: Request, res: Response, next: NextFunction) {
     const paramsSchema = z.object({
-      id: z.coerce.number().min(1, "Id inválido!").positive("Id inválido!"),
+      id: z.uuid({ message: "ID Inválido!" }),
     });
 
     const { id } = paramsSchema.parse(req.params);
 
     const ticket = await prisma.tickets.findFirst({
-      where: { ticketNumber: id, technician: { userId: req.user?.id } },
+      where: { id, technician: { userId: req.user?.id } },
       include: {
         client: { select: { avatar: true, name: true } },
         services: true,
@@ -313,15 +340,24 @@ class TicketsController {
     }
 
     const showTicket = {
-      id: ticket.ticketNumber,
+      id: ticket.id,
+      ticketNumber: ticket.ticketNumber,
       title: ticket.title,
       description: ticket.description,
       category: ticket.services.find((s) => s.type === "base")?.title,
-      created_at: ticket.createdAt,
-      updated_at: ticket.updatedAt,
-
-      client: ticket.client.name,
-      client_avatar: ticket.client.avatar,
+      created_at: dayjs(ticket.createdAt).format("DD-MM-YYYY HH:mm"),
+      updated_at: dayjs(ticket.updatedAt).format("DD-MM-YYYY HH:mm"),
+      service: ticket.services.map((s) => ({
+        id: s.id,
+        title: s.title,
+        price: s.price.toNumber(),
+        type: s.type,
+      })),
+      status: ticket.status,
+      client: {
+        name: ticket.client.name,
+        avatar: ticket.client.avatar,
+      },
 
       additional_services: ticket.services
         .filter((s) => s.type === "additional")
@@ -330,43 +366,45 @@ class TicketsController {
           price: v.price.toNumber(),
         })),
 
-      technician: ticket.technician.user.name,
-      technician_avatar: ticket.technician.user.avatar,
-      technician_email: ticket.technician.user.email,
+      technician: {
+        name: ticket.technician.user.name,
+        avatar: ticket.technician.user.avatar,
+        email: ticket.technician.user.email,
+      },
 
       base_value: ticket.services
         .find((s) => s.type === "base")
         ?.price.toNumber(),
-      additional_values: ticket.services
+      additional_value: ticket.services
         .filter((s) => s.type === "additional")
         .reduce((total, value) => total + value.price.toNumber(), 0),
+
+      total: ticket.services.reduce(
+        (total, service) => total + service.price.toNumber(),
+        0,
+      ),
     };
 
-    const total =
-      (showTicket.base_value || 0) +
-      showTicket.additional_services.reduce(
-        (total, value) => total + value.price,
-        0,
-      );
-
-    return res.json({ ...showTicket, total });
+    return res.json(showTicket);
   }
 
   async updateStatus(req: Request, res: Response, next: NextFunction) {
     const paramsSchema = z.object({
-      id: z.coerce.number().min(1, "Id inválido!").positive("Id inválido!"),
+      id: z.uuid({ message: "ID Inválido!" }),
     });
 
     const { id } = paramsSchema.parse(req.params);
 
     const bodySchema = z.object({
-      status: z.enum(["open", "in_progress", "close"], "Status Inválido!"),
+      status: z.enum(["open", "in_progress", "close"], {
+        message: "Status Inválido!",
+      }),
     });
 
     const { status } = bodySchema.parse(req.body);
 
     const ticket = await prisma.tickets.findFirst({
-      where: { ticketNumber: id },
+      where: { id },
       include: { technician: { select: { userId: true } } },
     });
 
@@ -382,7 +420,7 @@ class TicketsController {
     }
 
     const allowedTransitions = {
-      open: ["in_progress"],
+      open: ["in_progress", "close"],
       in_progress: ["close"],
       close: ["open"],
     };
@@ -394,7 +432,7 @@ class TicketsController {
     }
 
     const newStatus = await prisma.tickets.update({
-      where: { ticketNumber: id },
+      where: { id },
       data: { status },
     });
 
@@ -407,22 +445,25 @@ class TicketsController {
     next: NextFunction,
   ) {
     const paramsSchema = z.object({
-      id: z.coerce.number().min(1, "Id inválido!").positive("Id inválido!"),
+      id: z.uuid(),
     });
 
     const { id } = paramsSchema.parse(req.params);
 
     const bodySchema = z.object({
-      title: z
-        .string()
-        .min(4, "Por Favor, adicione um título válido ao serviço!"),
-      price: z.number().min(1, "Valor inválido!").positive("Valor inválido!"),
+      title: z.string().min(4, {
+        message: "Por Favor, adicione um título válido ao serviço!",
+      }),
+      price: z
+        .number()
+        .min(1, { message: "Valor inválido!" })
+        .positive({ message: "Valor inválido!" }),
     });
 
     const { title, price } = bodySchema.parse(req.body);
 
     const ticket = await prisma.tickets.findFirst({
-      where: { ticketNumber: id, technician: { userId: req.user?.id } },
+      where: { id, technician: { userId: req.user?.id } },
       include: { technician: { select: { userId: true } } },
     });
 
@@ -497,20 +538,29 @@ class TicketsController {
     });
 
     const ticketsDashboard = showTickets.map((t) => ({
-      updatedAt: t.updatedAt,
-      id: t.ticketNumber,
+      id: t.id,
+      ticketNumber: t.ticketNumber as unknown as string,
       title: t.title,
-      service: t.services.find((s) => s.type === "base")?.title,
+      service: t.services.map((s) => ({
+        title: s.title,
+        price: s.price.toNumber(),
+        type: s.type,
+      })),
+      updated_at: dayjs(t.updatedAt).format("DD-MM-YYYY HH:mm"),
       total: t.services.reduce(
         (total, service) => total + service.price.toNumber(),
         0,
       ),
 
-      clientAvatar: t.client.avatar,
-      client: t.client.name,
+      client: {
+        name: t.client.name,
+        avatar: t.client.avatar,
+      },
 
-      technicianAvatar: t.technician.user.avatar,
-      technician: t.technician.user.name,
+      technician: {
+        name: t.technician.user.name,
+        avatar: t.technician.user.avatar,
+      },
 
       status: t.status,
     }));
@@ -529,8 +579,8 @@ class TicketsController {
       }
 
       return (
-        new Date(a.updatedAt || 0).getTime() -
-        new Date(b.updatedAt || 0).getTime()
+        new Date(a.updated_at || 0).getTime() -
+        new Date(b.updated_at || 0).getTime()
       );
     });
 
@@ -539,13 +589,13 @@ class TicketsController {
 
   async showTicketAdmin(req: Request, res: Response, next: NextFunction) {
     const paramsSchema = z.object({
-      id: z.coerce.number().min(1, "Id inválido!").positive("Id inválido!"),
+      id: z.uuid({ message: "ID Inválido!" }),
     });
 
     const { id } = paramsSchema.parse(req.params);
 
     const ticket = await prisma.tickets.findFirst({
-      where: { ticketNumber: id },
+      where: { id },
       include: {
         client: { select: { avatar: true, name: true } },
         services: true,
@@ -562,39 +612,52 @@ class TicketsController {
     }
 
     const showTicket = {
-      id: ticket.ticketNumber,
+      id: ticket.id,
+      ticketNumber: ticket.ticketNumber,
       title: ticket.title,
       description: ticket.description,
       category: ticket.services.find((s) => s.type === "base")?.title,
-      created_at: ticket.createdAt,
-      updated_at: ticket.updatedAt,
+      created_at: dayjs(ticket.createdAt).format("DD-MM-YYYY HH:mm"),
+      updated_at: dayjs(ticket.updatedAt).format("DD-MM-YYYY HH:mm"),
+      service: ticket.services.map((s) => ({
+        id: s.id,
+        title: s.title,
+        price: s.price.toNumber(),
+        type: s.type,
+      })),
+      status: ticket.status,
+      client: {
+        name: ticket.client.name,
+        avatar: ticket.client.avatar,
+      },
 
-      client: ticket.client.name,
-      client_avatar: ticket.client.avatar,
-
-      technician: ticket.technician.user.name,
-      technician_avatar: ticket.technician.user.avatar,
-      technician_email: ticket.technician.user.email,
-
-      base_value: ticket.services
-        .find((s) => s.type === "base")
-        ?.price.toNumber(),
       additional_services: ticket.services
         .filter((s) => s.type === "additional")
         .map((v) => ({
           title: v.title,
           price: v.price.toNumber(),
         })),
+
+      technician: {
+        name: ticket.technician.user.name,
+        avatar: ticket.technician.user.avatar,
+        email: ticket.technician.user.email,
+      },
+
+      base_value: ticket.services
+        .find((s) => s.type === "base")
+        ?.price.toNumber(),
+      additional_value: ticket.services
+        .filter((s) => s.type === "additional")
+        .reduce((total, value) => total + value.price.toNumber(), 0),
+
+      total: ticket.services.reduce(
+        (total, service) => total + service.price.toNumber(),
+        0,
+      ),
     };
 
-    const total =
-      (showTicket.base_value || 0) +
-      showTicket.additional_services.reduce(
-        (total, value) => total + value.price,
-        0,
-      );
-
-    return res.json({ ...showTicket, total });
+    return res.json(showTicket);
   }
 }
 

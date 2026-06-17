@@ -9,15 +9,23 @@ const adminController = new AdminController();
 adminRoutes.use(ensureAuthenticated, verifyUserAuthorization(["admin"]));
 
 adminRoutes.get("/customer", (req, res, next) =>
-  adminController.showCustomers(req, res, next),
+  adminController.indexCustomers(req, res, next),
 );
+adminRoutes.get("/customer/:id", (req, res, next) =>
+  adminController.showCustomer(req, res, next),
+);
+
 adminRoutes.patch("/customer/:id", (req, res, next) =>
   adminController.updateCustomer(req, res, next),
 );
+
 adminRoutes.delete("/customer/:id", (req, res, next) =>
   adminController.deleteCustomer(req, res, next),
 );
 adminRoutes.get("/technician", (req, res, next) =>
+  adminController.indexTechnician(req, res, next),
+);
+adminRoutes.get("/technician/:id", (req, res, next) =>
   adminController.showTechnician(req, res, next),
 );
 

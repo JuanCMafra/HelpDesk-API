@@ -8,10 +8,10 @@ import {
   vi,
 } from "vitest";
 import request from "supertest";
-import { app } from "@/app";
-import prisma from "@/database/prisma";
+import { app } from "../app";
+import prisma from "..//database/prisma";
 import jwt from "jsonwebtoken";
-import { authConfig } from "@/config/auth";
+import { authConfig } from "..//config/auth";
 import { hash } from "bcrypt";
 
 vi.mock("@/providers/disk-storage", () => {
@@ -147,10 +147,8 @@ describe("ProfileController", () => {
         });
 
       expect(response.status).toBe(200);
-      expect(response.body.showProfileUpdated.name).toBe(
-        "updated_profile_controller_test",
-      );
-      expect(response.body.showProfileUpdated.email).toBe(
+      expect(response.body.name).toBe("updated_profile_controller_test");
+      expect(response.body.email).toBe(
         "updated_profile_controller_test@test.com",
       );
     });
@@ -164,10 +162,11 @@ describe("ProfileController", () => {
         });
 
       expect(response.status).toBe(200);
-      expect(response.body.showProfileUpdated.availability).toEqual([
-        "14:00",
-        "15:00",
-      ]);
+      const techProfile = await prisma.technicianProfile.findUnique({
+        where: { userId: techId },
+      });
+      // controller does not update availability via PATCH /profile; expect unchanged
+      expect(techProfile?.availability).toEqual(["08:00", "09:00"]);
     });
 
     it("should return error if name has fewer than 5 characters", async () => {

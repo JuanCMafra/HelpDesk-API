@@ -13,9 +13,11 @@ export function errorHandler(
   }
 
   if (error instanceof ZodError) {
+    const firstIssue = error.issues[0]; 
+
     return res.status(400).json({
-      message: "validation error",
-      issues: error.issues,
+      message: firstIssue.message,
+      field: String(firstIssue.path[0]),
     });
   }
 
@@ -25,4 +27,3 @@ export function errorHandler(
     message: error.message,
   });
 }
-

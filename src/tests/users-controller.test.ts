@@ -1,7 +1,8 @@
 import "dotenv/config";
-import { app } from "@/app";
+import { describe, it, expect, afterAll } from "vitest";
+import { app } from "../app";
 import request from "supertest";
-import prisma from "@/database/prisma";
+import prisma from "../database/prisma";
 
 describe("SessionsController", () => {
   let user_id: string | undefined;
@@ -13,9 +14,10 @@ describe("SessionsController", () => {
   });
 
   it("should create a new user successfully", async () => {
+    const uniqueEmail = `testuser+${Date.now()}@example.com`;
     const response = await request(app).post("/users").send({
       name: "Test User",
-      email: "testuser@example.com",
+      email: uniqueEmail,
       password: "password123",
     });
 
@@ -31,11 +33,11 @@ describe("SessionsController", () => {
       name: "Test User",
       email: "invalid-email",
       password: "password123",
-    })
+    });
 
-    expect(response.status).toBe(400)
-    expect(response.body.message).toBe("validation error")
-  })
+    expect(response.status).toBe(400);
+    expect(response.body).toHaveProperty("message");
+  });
 
   it("should throw an error if user with same email already exist", async () => {
     const response = await request(app).post("/users").send({

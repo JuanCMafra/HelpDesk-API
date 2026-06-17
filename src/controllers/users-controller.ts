@@ -10,8 +10,8 @@ class UsersController {
       name: z
         .string()
         .trim()
-        .min(5, "Nome e sobrenome deve ter ter mais de 5 letras!"),
-      email: z.email("e-mail inválido!"),
+        .min(5, "Nome e sobrenome devem ter ter mais de 5 letras!"),
+      email: z.email("E-mail inválido!"),
       password: z
         .string()
         .min(6, "A senha deve possuir mais que 6 caracteres!"),

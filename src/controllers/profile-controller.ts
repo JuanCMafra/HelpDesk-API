@@ -5,7 +5,6 @@ import prisma from "@/database/prisma";
 import { compare, hash } from "bcrypt";
 import uploadConfig from "@/config/upload";
 import { DiskStorage } from "@/providers/disk-storage";
-import { hours } from "@/utils/TechnicianAvailability";
 
 class ProfileController {
   async update(req: Request, res: Response, next: NextFunction) {
@@ -13,18 +12,13 @@ class ProfileController {
       name: z
         .string()
         .trim()
-        .min(5, "Nome e sobrenome deve ter mais de 5 letras!")
+        .min(5, {message: "Nome e sobrenome deve ter mais de 5 letras!"})
         .optional(),
 
-      email: z.email("E-mail inválido!").optional(),
-
-      availability: z
-        .array(z.enum(hours))
-        .min(1, "Selecione ao menos um horário!")
-        .optional(),
+      email: z.email({message: "E-mail inválido!"}).optional(),
     });
 
-    const { name, email, availability } = bodySchema.parse(req.body);
+    const { name, email } = bodySchema.parse(req.body);
 
     if (name) {
       await prisma.users.update({
@@ -62,36 +56,13 @@ class ProfileController {
       });
     }
 
-    if (req.user?.role === "technician" && availability) {
-      await prisma.technicianProfile.update({
-        where: {
-          userId: req.user.id,
-        },
-
-        data: {
-          availability,
-        },
-      });
-    }
-
     const updatedUser = await prisma.users.findUnique({
       where: {
         id: req.user?.id,
       },
-
-      include: {
-        technician: true,
-      },
     });
 
-    const showProfileUpdated = {
-      user_id: updatedUser?.id,
-      name: updatedUser?.name,
-      email: updatedUser?.email,
-      availability: updatedUser?.technician?.availability,
-    };
-
-    return res.status(200).json({ showProfileUpdated });
+    return res.status(200).json(updatedUser);
   }
 
   async updatePassword(req: Request, res: Response, next: NextFunction) {
@@ -100,10 +71,11 @@ class ProfileController {
         currentPassword: z.string(),
         newPassword: z
           .string()
-          .min(6, "A senha deve possuir mais que 6 caracteres!"),
+          .min(6, {message: "A senha deve possuir mais que 6 caracteres!"}),
       })
       .refine((p) => p.currentPassword !== p.newPassword, {
         message: "A nova senha deve ser diferente!",
+        path: ["newPassword"]
       });
 
     const { currentPassword, newPassword } = bodySchema.parse(req.body);

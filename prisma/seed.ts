@@ -1,16 +1,18 @@
 import prisma from "@/database/prisma";
+import { env } from "@/env";
 import bcrypt from "bcrypt";
 
 async function seed() {
-  // ADMIN
-  const adminPassword = await bcrypt.hash("admin", 10);
+  const adminPassword = await bcrypt.hash(env.ADMIN_PASSWORD, 10);
 
   await prisma.users.upsert({
     where: {
       email: "admin@email.com",
     },
 
-    update: {},
+    update: {
+      password: adminPassword,
+    },
 
     create: {
       name: "admin",
@@ -185,5 +187,3 @@ seed()
   .finally(async () => {
     await prisma.$disconnect();
   });
-
-// rode o comando: npx prisma db seed

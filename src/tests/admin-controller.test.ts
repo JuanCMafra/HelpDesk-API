@@ -5,13 +5,13 @@ import {
   beforeAll,
   beforeEach,
   afterAll,
-  vi,
+  
 } from "vitest";
 import request from "supertest";
-import { app } from "@/app";
-import prisma from "@/database/prisma";
+import { app } from "../app";
+import prisma from "..//database/prisma";
 import jwt from "jsonwebtoken";
-import { authConfig } from "@/config/auth";
+import { authConfig } from "..//config/auth";
 import { hash } from "bcrypt";
 
 describe("AdminController", () => {
@@ -148,15 +148,14 @@ describe("AdminController", () => {
       expect(response.status).toBe(200);
 
       const testCustomer = response.body.find(
-        (user: any) => user.email === "client@test.com",
+        (user: any) => user.user.email === "client@test.com",
       );
 
-      expect(testCustomer).toBeDefined();
-      expect(testCustomer.name).toBe("User Customer");
+      expect(testCustomer.user.name).toBe("User Customer");
       expect(testCustomer).not.toHaveProperty("password");
 
       const testTech = response.body.find(
-        (user: any) => user.email === "tech@test.com",
+        (user: any) => user.user.email === "tech@test.com",
       );
       expect(testTech).toBeUndefined();
     });
@@ -176,7 +175,7 @@ describe("AdminController", () => {
       const response = await request(app)
         .patch(`/admin/customer/${customer.id}`)
         .set("Authorization", `Bearer ${adminToken}`)
-        .send({ name: "Novo Nome Sobrenome" });
+        .send({ name: "Novo Nome Sobrenome", email: customer.email });
 
       expect(response.status).toBe(200);
 
@@ -298,11 +297,13 @@ describe("AdminController", () => {
         (tech: any) => tech.email === "active@test.com",
       );
       expect(activeTechResult).toBeDefined();
+      expect(activeTechResult.active).toBe(true);
 
       const inactiveTechResult = response.body.find(
         (tech: any) => tech.email === "inactive@test.com",
       );
-      expect(inactiveTechResult).toBeUndefined();
+      expect(inactiveTechResult).toBeDefined();
+      expect(inactiveTechResult.active).toBe(false);
     });
   });
 
@@ -316,12 +317,12 @@ describe("AdminController", () => {
           role: "technician",
         },
       });
-      await prisma.technicianProfile.create({
+      const techProfile = await prisma.technicianProfile.create({
         data: { userId: tech.id, availability: ["11:00"], active: true },
       });
 
       const response = await request(app)
-        .patch(`/admin/technician/delete/${tech.id}`)
+        .patch(`/admin/technician/delete/${techProfile.id}`)
         .set("Authorization", `Bearer ${adminToken}`);
 
       expect(response.status).toBe(200);
@@ -332,7 +333,7 @@ describe("AdminController", () => {
       expect(userExists).not.toBeNull();
 
       const profile = await prisma.technicianProfile.findUnique({
-        where: { userId: tech.id },
+        where: { id: techProfile.id },
       });
       expect(profile?.active).toBe(false);
     });

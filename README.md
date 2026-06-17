@@ -36,7 +36,7 @@ Esta aplicação expõe endpoints para gerenciamento de usuários, autenticaçã
 - `POST /sessions` - login / geração de token
 - `GET /profile` - dados do usuário autenticado
 - `PATCH /profile/avatar` - enviar avatar do usuário
-- `GET /admin` - rotas administrativas
+- `GET /admin` - rotas do administrador
 - `GET /services` - gestão de serviços
 - `GET /tickets` - gestão de tickets
 

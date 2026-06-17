@@ -1,7 +1,8 @@
 import "dotenv/config";
-import { app } from "@/app";
-import prisma from "@/database/prisma";
 import request from "supertest";
+import { app } from "../app";
+import prisma from "..//database/prisma";
+import { describe, it, expect, afterAll } from "vitest";
 
 describe("SessionsController", () => {
   let user_id: string | undefined;
@@ -26,7 +27,7 @@ describe("SessionsController", () => {
       password: "password123",
     });
 
-    expect(sessionsResponse.status).toBe(201)
-    expect(sessionsResponse.body.token).toEqual(expect.any(String))
+    expect(sessionsResponse.status).toBe(201);
+    expect(sessionsResponse.body.token).toEqual(expect.any(String));
   });
 });

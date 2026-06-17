@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import request from "supertest";
-import { app } from "@/app";
-import prisma from "@/database/prisma";
+import { app } from "../app";
+import prisma from "../database/prisma";
 import jwt from "jsonwebtoken";
-import { authConfig } from "@/config/auth";
+import { authConfig } from "../config/auth";
 import { hash } from "bcrypt";
 
 describe("TicketsController", () => {
@@ -160,7 +160,7 @@ describe("TicketsController", () => {
         (t: any) => t.title === "Setup de PC Gamer completo",
       );
       expect(currentTicket).toBeDefined();
-      expect(currentTicket.technician).toBe("Tech Test");
+      expect(currentTicket.technician.name).toBe("Tech Test");
       expect(typeof currentTicket.total).toBe("number");
     });
 
@@ -174,7 +174,7 @@ describe("TicketsController", () => {
         (t: any) => t.title === "Setup de PC Gamer completo",
       );
       expect(currentTicket).toBeDefined();
-      expect(currentTicket.client).toBe("Client Test");
+      expect(currentTicket.client.name).toBe("Client Test");
     });
   });
   describe("GET /tickets/:role/:id", () => {
@@ -184,7 +184,7 @@ describe("TicketsController", () => {
       });
 
       const response = await request(app)
-        .get(`/tickets/customer/${createdTicket?.ticketNumber}`)
+        .get(`/tickets/customer/${createdTicket?.id}`)
         .set("Authorization", `Bearer ${clientToken}`);
 
       expect(response.status).toBe(200);
@@ -201,7 +201,7 @@ describe("TicketsController", () => {
       });
 
       const response = await request(app)
-        .patch(`/tickets/${createdTicket?.ticketNumber}/status`)
+        .patch(`/tickets/${createdTicket?.id}/status`)
         .set("Authorization", `Bearer ${techToken}`)
         .send({ status: "in_progress" });
 
@@ -219,7 +219,7 @@ describe("TicketsController", () => {
       });
 
       const response = await request(app)
-        .patch(`/tickets/${createdTicket?.ticketNumber}/status`)
+        .patch(`/tickets/${createdTicket?.id}/status`)
         .set("Authorization", `Bearer ${techToken}`)
         .send({ status: "open" });
 
@@ -237,7 +237,7 @@ describe("TicketsController", () => {
       });
 
       const response = await request(app)
-        .post(`/tickets/${createdTicket?.ticketNumber}`)
+        .post(`/tickets/${createdTicket?.id}`)
         .set("Authorization", `Bearer ${techToken}`)
         .send({
           title: "Pasta Térmica Premium Noctua",

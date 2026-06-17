@@ -17,21 +17,21 @@ class SessionsController {
 
     const user = await prisma.users.findFirst({
       where: { email },
-      include: { technician: { select: { active: true } } },
+      include: { technician: { select: { active: true, availability: true } } },
     });
 
     if (!user) {
-      return next(new AppError("invalid e-mail or password!", 401));
+      return next(new AppError("E-mail ou senha inválido!", 401));
     }
 
     if (user.technician?.active === false) {
-      return next(new AppError("invalid e-mail or password!", 401));
+      return next(new AppError("Usuário desativado, por favor, contacte o administrador!", 401));
     }
 
     const passwordMatched = await compare(password, user.password);
 
     if (!passwordMatched) {
-      return next(new AppError("invalid e-mail or password!", 401));
+      return next(new AppError("E-mail ou senha inválido!", 401));
     }
 
     const { secret, expiresIn } = authConfig.jwt;

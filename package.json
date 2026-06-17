@@ -10,12 +10,13 @@
     "build": "tsup src/server.ts --out-dir build",
     "start": "node build/server.js"
   },
-  
   "author": "Juan Mafra",
   "license": "ISC",
   "dependencies": {
     "@prisma/client": "^7.8.0",
     "bcrypt": "^6.0.0",
+    "cors": "^2.8.6",
+    "dayjs": "^1.11.21",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.1.1",
@@ -25,6 +26,7 @@
   "devDependencies": {
     "@prisma/adapter-pg": "^7.8.0",
     "@types/bcrypt": "^6.0.0",
+    "@types/cors": "^2.8.19",
     "@types/dotenv": "^6.1.1",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",

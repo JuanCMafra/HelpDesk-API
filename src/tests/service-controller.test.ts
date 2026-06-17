@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
 import request from "supertest";
-import { app } from "@/app";
-import prisma from "@/database/prisma";
+
+import { app } from "../app";
+import prisma from "..//database/prisma";
 import jwt from "jsonwebtoken";
-import { authConfig } from "@/config/auth";
+import { authConfig } from "..//config/auth";
 import { hash } from "bcrypt";
 
 describe("ServicesController", () => {
@@ -103,7 +104,7 @@ describe("ServicesController", () => {
       });
 
       const response = await request(app)
-        .get("/services")
+        .get("/services/admin")
         .set("Authorization", `Bearer ${adminToken}`);
 
       expect(response.status).toBe(201);
@@ -116,9 +117,9 @@ describe("ServicesController", () => {
       );
 
       expect(formattedPcService).toBeDefined();
-      expect(formattedPcService.value).toBe("100");
+      expect(String(formattedPcService.price)).toBe("100");
       expect(backupService).toBeDefined();
-      expect(backupService.value).toBe("250");
+      expect(String(backupService.price)).toBe("250");
     });
   });
 

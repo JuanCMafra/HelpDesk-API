@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import z, { custom } from "zod";
+import z, { email } from "zod";
 import { AppError } from "@/utils/AppError";
 import prisma from "@/database/prisma";
 import { DiskStorage } from "@/providers/disk-storage";
@@ -7,17 +7,32 @@ import { hash } from "bcrypt";
 import { hours } from "@/utils/TechnicianAvailability";
 
 class AdminController {
-  async showCustomers(req: Request, res: Response, next: NextFunction) {
+  async indexCustomers(req: Request, res: Response, next: NextFunction) {
     const showCustomers = await prisma.users.findMany();
-
     const customerDashboard = showCustomers
       .filter((c) => c.role === "customer")
       .map((c) => ({
-        avatar: c.avatar,
-        name: c.name,
-        email: c.email,
+        user: { id: c.id, avatar: c.avatar, name: c.name, email: c.email },
       }));
     return res.status(200).json(customerDashboard);
+  }
+
+  async showCustomer(req: Request, res: Response, next: NextFunction) {
+    const paramsSchema = z.object({
+      id: z.uuid({ message: "UUID inválido!" }),
+    });
+
+    const { id } = paramsSchema.parse(req.params);
+
+    const customer = await prisma.users.findUnique({
+      where: { id },
+    });
+
+    if (!customer) {
+      return next(new AppError("Usuário não encontrado!", 404));
+    }
+
+    return res.status(200).json({ user: customer });
   }
 
   async updateCustomer(req: Request, res: Response, next: NextFunction) {
@@ -39,43 +54,29 @@ class AdminController {
       name: z
         .string()
         .trim()
-        .min(5, "Nome e sobrenome deve ter mais de 5 letras!")
-        .optional(),
-      email: z.email("E-mail inválido!").optional(),
+        .min(5, { message: "Nome e sobrenome devem ter mais de 5 letras!" }),
+      email: z.email({ message: "E-mail inválido!" }),
     });
 
     const { name, email } = bodySchema.parse(req.body);
 
-    if (name) {
-      await prisma.users.update({
-        where: {
-          id,
-        },
-        data: {
-          name,
-        },
-      });
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const userWithSameEmail = await prisma.users.findUnique({
+      where: { email: normalizedEmail },
+    });
+
+    if (userWithSameEmail && userWithSameEmail.id !== id) {
+      return next(new AppError("Esse e-mail já existe!"));
     }
 
-    if (email) {
-      const normalizedEmail = email.trim().toLowerCase();
+    await prisma.users.update({
+      where: {
+        id,
+      },
+      data: { name, email },
+    });
 
-      const userWithSameEmail = await prisma.users.findUnique({
-        where: { email: normalizedEmail },
-      });
-
-      if (userWithSameEmail && userWithSameEmail.id !== id) {
-        return next(new AppError("Esse e-mail já existe!"));
-      }
-      await prisma.users.update({
-        where: {
-          id,
-        },
-        data: {
-          email,
-        },
-      });
-    }
     return res.status(200).json();
   }
 
@@ -124,14 +125,14 @@ class AdminController {
       name: z
         .string()
         .trim()
-        .min(5, "Nome e sobrenome deve ter ter mais de 5 letras!"),
-      email: z.email("e-mail inválido!"),
+        .min(5, { message: "Nome e sobrenome deve ter ter mais de 5 letras!" }),
+      email: z.email({ message: "e-mail inválido!" }),
       password: z
         .string()
-        .min(6, "A senha deve possuir mais que 6 caracteres!"),
+        .min(6, { message: "A senha deve possuir mais que 6 caracteres!" }),
       availability: z
         .array(z.enum(hours))
-        .min(1, "Selecione ao menos um horário!"),
+        .min(1, { message: "Selecione ao menos um horário!" }),
     });
 
     const { name, email, password, availability } = bodySchema.parse(req.body);
@@ -141,7 +142,7 @@ class AdminController {
     });
 
     if (userWithSameEmail) {
-      return next(new AppError("user with same email already exists"));
+      return next(new AppError("Um usuário já possui esse e-mail!"));
     }
 
     const hashedPassword = await hash(password, 8);
@@ -166,21 +167,54 @@ class AdminController {
 
     return res.status(201).json({ userWithoutPassword, technician });
   }
-  
-  async showTechnician(req: Request, res: Response, next: NextFunction) {
+
+  async indexTechnician(req: Request, res: Response, next: NextFunction) {
     const showTechnician = await prisma.users.findMany({
-      include: { technician: { select: { availability: true, active: true } } },
+      include: {
+        technician: { select: { availability: true, active: true, id: true } },
+      },
     });
 
     const technicianDashboard = showTechnician
-      .filter((c) => c.role === "technician" && c.technician?.active === true)
+      .filter((c) => c.role === "technician")
       .map((c) => ({
+        id: c.technician?.id,
         avatar: c.avatar,
         name: c.name,
         email: c.email,
-        available: c.technician?.availability,
+        active: c.technician?.active,
+        availability: c.technician?.availability,
       }));
+
     return res.status(200).json(technicianDashboard);
+  }
+
+  async showTechnician(req: Request, res: Response, next: NextFunction) {
+    const paramsSchema = z.object({
+      id: z.uuid(),
+    });
+
+    const { id } = paramsSchema.parse(req.params);
+
+    const technician = await prisma.technicianProfile.findUnique({
+      where: { id },
+      include: { user: { select: { avatar: true, email: true, name: true } } },
+    });
+
+    if (!technician) {
+      return next(new AppError("Técnico não encontrado!", 404));
+    }
+
+    const showTechnician = {
+      id: technician.id,
+      avatar: technician.user.avatar,
+      name: technician.user.name,
+      email: technician.user.email,
+      availability: technician.availability,
+      active: technician.active,
+    };
+
+    return res.status(200).json(showTechnician);
   }
 
   async updateTechnician(req: Request, res: Response, next: NextFunction) {
@@ -191,67 +225,55 @@ class AdminController {
     const { id } = paramsSchema.parse(req.params);
 
     const technician = await prisma.technicianProfile.findUnique({
-      where: { userId: id },
+      where: { id },
     });
 
     if (!technician) {
-      return next(new AppError("Usuário não encontrado!", 404));
+      return next(new AppError("Técnico não encontrado!", 404));
     }
 
     const bodySchema = z.object({
       name: z
         .string()
         .trim()
-        .min(5, "Nome e sobrenome deve ter mais de 5 letras!")
-        .optional(),
-      email: z.email("E-mail inválido!").optional(),
+        .min(5, { message: "Nome e sobrenome deve ter mais de 5 letras!" }),
+      email: z.email({ message: "E-mail inválido!" }),
       availability: z
         .array(z.enum(hours))
-        .min(1, "Selecione ao menos um horário!")
-        .optional(),
+        .min(1, { message: "Selecione ao menos um horário!" }),
     });
 
     const { name, email, availability } = bodySchema.parse(req.body);
 
-    if (name) {
-      await prisma.users.update({
-        where: {
-          id,
-        },
-        data: {
-          name,
-        },
-      });
+    const technicianSelected = await prisma.users.findFirst({
+      where: { technician: { id } },
+    });
+
+    if (!technicianSelected) {
+      return next(new AppError("Técnico não encontrado!", 404));
     }
 
-    if (email) {
-      const normalizedEmail = email.trim().toLowerCase();
+    const normalizedEmail = email.trim().toLowerCase();
 
-      const userWithSameEmail = await prisma.users.findUnique({
-        where: { email: normalizedEmail },
-      });
+    const userWithSameEmail = await prisma.users.findUnique({
+      where: { email: normalizedEmail },
+    });
 
-      if (userWithSameEmail && userWithSameEmail.id !== id) {
-        return next(new AppError("Esse e-mail já existe!"));
-      }
-      await prisma.users.update({
-        where: {
-          id,
-        },
-        data: {
-          email,
-        },
-      });
+    if (userWithSameEmail && userWithSameEmail.id !== technician.userId) {
+      return next(new AppError("Esse e-mail já existe!"));
     }
 
-    if (availability) {
-      await prisma.technicianProfile.update({
-        where: { userId: id },
-        data: {
-          availability,
-        },
-      });
-    }
+    await prisma.users.update({
+      where: {
+        id: technician.userId,
+      },
+      data: {
+        name,
+        email,
+        technician: { update: { availability } },
+      },
+    });
+
     return res.status(200).json();
   }
 
@@ -266,13 +288,13 @@ class AdminController {
 
     const technician = await prisma.technicianProfile.findUnique({
       where: {
-        userId: id,
+        id,
       },
       include: { user: { select: { avatar: true } } },
     });
 
     if (!technician) {
-      throw new AppError("Usuário não encontrado", 404);
+      throw new AppError("Técnico não encontrado", 404);
     }
 
     if (technician.user.avatar) {
@@ -281,10 +303,19 @@ class AdminController {
 
     await prisma.technicianProfile.update({
       where: {
-        userId: id,
+        id,
       },
       data: {
-        active: false,
+        active: !technician?.active,
+      },
+    });
+
+    await prisma.users.update({
+      where: {
+        id: technician.userId,
+      },
+      data: {
+        avatar: null,
       },
     });
 
