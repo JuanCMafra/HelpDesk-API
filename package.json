@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "An API for a call management system",
   "main": "src/server.ts",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "dev": "tsx --watch --env-file .env src/server.ts",
     "test": "vitest run",
