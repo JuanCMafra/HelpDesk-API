@@ -6,11 +6,12 @@
   "engines": {
     "node": ">=18"
   },
+  "type": "modu",
   "scripts": {
     "dev": "tsx --watch --env-file .env src/server.ts",
     "test": "vitest run",
     "test:dev": "vitest --watch",
-    "build": "npx prisma generate && tsup src/server.ts --out-dir build",
+    "build": "npx prisma generate && tsup src/server.ts --out-dir build --format esm",
     "start": "node build/server.js"
   },
   "author": "Juan Mafra",
