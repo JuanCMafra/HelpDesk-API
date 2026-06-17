@@ -39,7 +39,7 @@ Esta aplicação oferece um backend completo para gerenciamento de usuários, au
 1. Clone o repositório:
 
 ```bash
-git clone <url-do-repositorio>
+git clone <https://github.com/JuanCMafra/HelpDesk-API>
 cd "Help Desk/API"
 ```
 
